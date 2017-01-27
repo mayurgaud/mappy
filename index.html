@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Search for up to 200 places with Radar Search</title>
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+         * element that contains the map. */
+        #map {
+            height: 100%;
+        }
+        /* Optional: Makes the sample page fill the window. */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCxDCQDpPtftcXC5TPggbvInQne1CQHTpc&libraries=places"></script>
+    <script src="RouteBoxer.js"></script>
+    <script>
+        // This example requires the Places library. Include the libraries=places
+        // parameter when you first load the API. For example:
+        // <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places">
+
+        var map;
+        var infoWindow;
+        var service;
+        var boxpolys = null;
+        var directions = null;
+        var routeBoxer = null;
+        var distance = null; // km
+
+        function initialize() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: -33.867, lng: 151.206},
+                zoom: 15,
+                styles: [{
+                    stylers: [{ visibility: 'simplified' }]
+                }, {
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                }]
+            });
+
+
+            routeBoxer = new RouteBoxer();
+            infoWindow = new google.maps.InfoWindow();
+            service = new google.maps.places.PlacesService(map);
+            directionService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+            var from = document.getElementById('from');
+            var to = document.getElementById('to');
+            var autocompleteFrom = new google.maps.places.Autocomplete(from);
+            var autocompleteTo = new google.maps.places.Autocomplete(to);
+            // The idle event is a debounced event, so we can query & listen without
+            // throwing too many requests at the server.
+            map.addListener('idle', performSearch);
+        }
+
+        function performSearch() {
+            var request = {
+                bounds: map.getBounds(),
+                keyword: 'bars'
+            };
+            service.radarSearch(request, callback);
+        }
+
+        function callback(results, status) {
+            if (status !== google.maps.places.PlacesServiceStatus.OK) {
+                console.error(status);
+                return;
+            }
+            for (var i = 0, result; result = results[i]; i++) {
+                addMarker(result);
+            }
+        }
+
+        function addMarker(place) {
+            var marker = new google.maps.Marker({
+                map: map,
+                position: place.geometry.location,
+                icon: {
+                    url: 'https://developers.google.com/maps/documentation/javascript/images/circle.png',
+                    anchor: new google.maps.Point(10, 10),
+                    scaledSize: new google.maps.Size(10, 17)
+                }
+            });
+
+            google.maps.event.addListener(marker, 'click', function() {
+                service.getDetails(place, function(result, status) {
+                    if (status !== google.maps.places.PlacesServiceStatus.OK) {
+                        console.error(status);
+                        return;
+                    }
+                    infoWindow.setContent(result.name);
+                    infoWindow.open(map, marker);
+                });
+            });
+        }
+
+
+        function route() {
+            // Clear any previous route boxes from the map
+            clearBoxes();
+
+            // Convert the distance to box around the route from miles to km
+            distance = parseFloat(document.getElementById("distance").value) * 1.609344;
+
+            var request = {
+                origin: document.getElementById("from").value,
+                destination: document.getElementById("to").value,
+                travelMode: google.maps.DirectionsTravelMode.DRIVING
+            }
+
+            // Make the directions request
+            directionService.route(request, function(result, status) {
+                if (status == google.maps.DirectionsStatus.OK) {
+                    directionsRenderer.setDirections(result);
+
+                    // Box around the overview path of the first route
+                    var path = result.routes[0].overview_path;
+                    var boxes = routeBoxer.box(path, distance);
+                    drawBoxes(boxes);
+                } else {
+                    alert("Directions query failed: " + status);
+                }
+            });
+        }
+
+        // Draw the array of boxes as polylines on the map
+        function drawBoxes(boxes) {
+            boxpolys = new Array(boxes.length);
+            for (var i = 0; i < boxes.length; i++) {
+                boxpolys[i] = new google.maps.Rectangle({
+                    bounds: boxes[i],
+                    fillOpacity: 0,
+                    strokeOpacity: 1.0,
+                    strokeColor: '#000000',
+                    strokeWeight: 1,
+                    map: map
+                });
+            }
+        }
+
+        // Clear boxes currently on the map
+        function clearBoxes() {
+            if (boxpolys != null) {
+                for (var i = 0; i < boxpolys.length; i++) {
+                    boxpolys[i].setMap(null);
+                }
+            }
+            boxpolys = null;
+        }
+    </script>
+</head>
+<body onload="initialize();">
+<div id="map" style="width: 800px; height: 600px;"></div>
+Box within at least <input type="text" id="distance" value="30" size="2">miles
+of the route from <input type="text" id="from" placeholder="Enter an origin location"/>
+to <input type="text" id="to" placeholder="Enter a destination location"/>
+<input type="submit" onclick="route()"/>
+</body>
+</html>
