@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Search for up to 200 places with Radar Search</title>
+    <title>Mappy</title>
     <style>
         /* Always set the map height explicitly to define the size of the div
          * element that contains the map. */
@@ -59,10 +59,12 @@
         }
 
         function performSearch() {
+            var places = document.getElementById('places').value;
             var request = {
                 bounds: map.getBounds(),
-                keyword: 'bars'
+                keyword: places ? places : 'bars'
             };
+            
             service.radarSearch(request, callback);
         }
 
@@ -155,10 +157,11 @@
     </script>
 </head>
 <body onload="initialize();">
-<div id="map" style="width: 800px; height: 600px;"></div>
 Box within at least <input type="text" id="distance" value="30" size="2">miles
 of the route from <input type="text" id="from" placeholder="Enter an origin location"/>
 to <input type="text" id="to" placeholder="Enter a destination location"/>
+<input type="text" id="places" placeholder="Enter gas station, KFC etc."/>
 <input type="submit" onclick="route()"/>
+<div id="map" style="width: 800px; height: 600px;"></div>
 </body>
 </html>
